@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Impacto Coral</title>
+    
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1a2a3a; /* Azul escuro (fundo do oceano) */
+            color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+            transition: background-color 0.5s ease; /* Transição suave da cor */
+            overflow-x: hidden; /* Evita barra de rolagem horizontal por causa dos confetes */
+        }
+        
+        /* Efeito de Branqueamento (Negativo) */
+        body.bleached {
+            background-color: #d1d5db; /* Um cinza pálido, "doente" */
+        }
+
+        h1 {
+            color: #1b77ef;
+            border-bottom: 2px solid #00aeff;
+            padding-bottom: 10px;
+        }
+        
+        /* O container principal */
+        .container {
+            max-width: 700px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            color: #222;
+            padding: 25px 30px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            transition: background-color 0.5s ease; 
+            position: relative; /* Garante que o container fique acima dos confetes */
+            z-index: 10;
+        }
+
+        /* O container também fica pálido */
+        body.bleached .container {
+            background-color: #f0f2f5;
+        }
+
+        /* --- NOVO: Cabeçalho do Jogo (Pontuação) --- */
+        #game-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #1a2a3a;
+            background-color: #f0f2f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        #game-header span {
+            color: #007bff;
+            font-size: 1.2em;
+        }
+
+        h2 {
+            color: #1a2a3a;
+            font-size: 22px;
+            margin-top: 0;
+            min-height: 50px; /* Garante altura mínima para o texto da pergunta */
+        }
+
+        /* --- CSS DOS BOTÕES ATUALIZADO COM ÍCONES --- */
+        .quiz-options button {
+            display: flex; /* Alinha o ícone e o texto */
+            align-items: center; /* Centraliza verticalmente */
+            gap: 12px; /* Espaço entre o ícone e o texto */
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 16px;
+            text-align: left;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f4f7f6;
+            color: #333;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .quiz-options button:hover {
+            background-color: #e0eafc; /* Azul claro no hover */
+            transform: scale(1.02);
+        }
+
+        /* --- Estilo dos Confetes --- */
+        .confetti {
+            position: fixed;
+            top: -20px;
+            width: 10px;
+            height: 10px;
+            opacity: 0.9;
+            z-index: 1001; 
+            animation: fall 3s linear forwards;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+
+        /* --- EFEITO DE FLASH (POLÍCIA) --- */
+        #flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: rgba(255, 0, 0, 0.5);
+            z-index: 1001; 
+            display: none;
+            pointer-events: none; 
+        }
+
+        /* Animação do flash */
+        @keyframes policeFlash {
+            0%, 100% { background-color: rgba(255, 0, 0, 0.5); } /* Vermelho */
+            50% { background-color: rgba(0, 0, 255, 0.5); } /* Azul */
+        }
+
+        #flash-overlay.flashing {
+            display: block;
+            animation: policeFlash 0.4s infinite; 
+        }
+
+        /* --- O ALERTA (Visual) --- */
+        #alert-overlay {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh; 
+            background-color: rgba(0, 0, 0, 0.75); 
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            z-index: 1002;
+        }
+
+        #alert-box {
+            background-color: #fff;
+            padding: 0;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+            text-align: left;
+            overflow: hidden; 
+            max-height: 90vh; 
+            display: flex;
+            flex-direction: column;
+            position: relative; 
+            z-index: 1003; 
+        }
+        
+        #alert-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0; /* Não encolhe */
+        }
+        
+        #alert-header.danger {
+            background-color: #d32f2f; /* Vermelho Alerta */
+        }
+
+        #alert-header.success {
+            background-color: #4caf50; /* Verde Sucesso */
+        }
+
+        #alert-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+            color: #ffffff;
+        }
+
+        #alert-content {
+            padding: 25px;
+            overflow-y: auto; /* Adiciona barra de rolagem se o conteúdo for grande */
+        }
+
+        #alert-message {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        #alert-info {
+            font-size: 15px;
+            color: #111;
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid #00aeff;
+        }
+        
+        #alert-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #f0f0f0;
+            background-color: #f9f9f9;
+            text-align: right;
+            flex-shrink: 0; /* Não encolhe */
+        }
+
+        #close-alert {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #close-alert:hover {
+            background-color: #0056b3;
+        }
+        
+        /* --- TELA FINAL (RANKING) --- */
+        #end-screen {
+            display: none; /* Começa escondido */
+            max-width: 700px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            color: #222;
+            padding: 25px 30px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            text-align: center;
+        }
+        
+        #end-screen h2 {
+            color: #1a2a3a;
+        }
+
+        #final-score {
+            font-size: 3.5em;
+            font-weight: bold;
+            color: #007bff;
+            margin: 10px 0 20px 0;
+        }
+
+        #ranking-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #player-name {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #save-score-btn, #play-again-btn {
+            background-color: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap; /* Evita quebra de linha */
+        }
+         #play-again-btn {
+            background-color: #007bff;
+            margin-top: 10px;
+            width: 100%;
+         }
+
+        #leaderboard {
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        
+        #leaderboard h3 {
+            color: #1a2a3a;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        #leaderboard-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #leaderboard-list li {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+        }
+         #leaderboard-list li:nth-child(1) {
+            background-color: #fffbe6; /* Destaque para o primeiro */
+            font-weight: bold;
+         }
+         #leaderboard-list li .score {
+            font-weight: bold;
+            color: #007bff;
+         }
+
+    </style>
+</head>
+<body>
+
+    <div class="container" id="game-container">
+        <h1>Quiz Impacto Coral</h1>
+        
+        <div id="game-header">
+            Pontuação: <span id="score">0</span> | Questão <span id="question-num">1</span> / <span id="total-questions">?</span>
+        </div>
+        
+        <h2 id="question-text">Em um dia de praia, qual é a sua atitude?</h2>
+        
+        <div class="quiz-options">
+            <button id="option-a"></button>
+            <button id="option-b"></button>
+        </div>
+    </div>
+    
+    <div id="end-screen">
+        <h2>Quiz Finalizado!</h2>
+        <p>Sua pontuação final foi:</p>
+        <div id="final-score">0</div>
+        
+        <div id="ranking-form">
+            <input type="text" id="player-name" placeholder="Digite seu nome">
+            <button id="save-score-btn">Salvar</button>
+        </div>
+        <button id="play-again-btn">Jogar Novamente</button>
+        
+        <div id="leaderboard">
+            <h3>🏆 Ranking Top 5 🏆</h3>
+            <ol id="leaderboard-list">
+                </ol>
+        </div>
+    </div>
+
+
+    <div id="flash-overlay"></div>
+
+    <div id="alert-overlay">
+        <div id="alert-box">
+            
+            <div id="alert-header">
+                <h2 id="alert-title"></h2>
+            </div>
+            
+            <div id="alert-content">
+                <p id="alert-message"></p>
+                <div id="alert-info"></div>
+            </div>
+            
+            <div id="alert-footer">
+                <button id="close-alert">Entendido</button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // --- Som "Level Up" Rápido (Sem alteração) ---
+        function playVictorySound() {
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.type = 'sine'; 
+                gainNode.gain.setValueAtTime(0.4, audioContext.currentTime); 
+
+                const now = audioContext.currentTime;
+                
+                oscillator.frequency.setValueAtTime(659.25, now + 0.0); // E5
+                oscillator.frequency.setValueAtTime(987.77, now + 0.07); // B5
+                oscillator.frequency.setValueAtTime(1318.51, now + 0.14); // E6
+                oscillator.frequency.setValueAtTime(1567.98, now + 0.21); // G6
+                
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+                oscillator.start(now);
+                oscillator.stop(now + 0.7);
+            } catch (e) {
+                console.error("Não foi possível tocar o som de vitória:", e);
+            }
+        }
+
+        // --- Lançador de Confetes (Sem alteração) ---
+        function launchConfetti() {
+            try {
+                const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800'];
+                const confettiCount = 100;
+
+                for (let i = 0; i < confettiCount; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    confetti.style.animationDuration = 2 + Math.random() * 2 + 's'; // Duração entre 2 e 4 segundos
+
+                    document.body.appendChild(confetti);
+
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 4000); // 4 segundos é a duração máxima da animação
+                }
+            } catch (e) {
+                console.error("Erro ao lançar confetes:", e);
+            }
+        }
+
+
+        // --- SOM DE SIRENE DE POLÍCIA (Sem alteração) ---
+        let sirenOscillator = null;
+        let sirenInterval = null;
+
+        function startSirenSound() {
+            if (sirenOscillator) return; 
+
+            try {
+                sirenOscillator = audioContext.createOscillator();
+                const sirenGain = audioContext.createGain();
+
+                sirenOscillator.type = 'sawtooth'; 
+                sirenGain.gain.setValueAtTime(0.3, audioContext.currentTime); 
+                sirenOscillator.connect(sirenGain).connect(audioContext.destination);
+                
+                let wailUp = true;
+                const wailFrequency = () => {
+                    let now = audioContext.currentTime;
+                    let freq = wailUp ? 1200 : 800; 
+                    sirenOscillator.frequency.linearRampToValueAtTime(freq, now + 0.5); 
+                    wailUp = !wailUp;
+                };
+                
+                sirenOscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                sirenOscillator.start();
+                wailFrequency(); 
+                sirenInterval = setInterval(wailFrequency, 500); 
+
+            } catch (e) {
+                console.error("Não foi possível tocar o som da sirene:", e);
+            }
+        }
+
+        function stopSirenSound() {
+            if (sirenInterval) {
+                clearInterval(sirenInterval);
+                sirenInterval = null;
+            }
+            if (sirenOscillator) {
+                sirenOscillator.stop();
+                sirenOscillator.disconnect();
+                sirenOscillator = null;
+            }
+        }
+        // --- Fim do Áudio ---
+
+
+        // --- Selecionando os elementos do HTML ---
+        const bodyEl = document.body;
+        const flashOverlay = document.getElementById('flash-overlay');
+        const alertOverlay = document.getElementById('alert-overlay');
+        const alertHeader = document.getElementById('alert-header');
+        const alertTitle = document.getElementById('alert-title');
+        const alertMessage = document.getElementById('alert-message');
+        const alertInfo = document.getElementById('alert-info');
+        const closeButton = document.getElementById('close-alert');
+
+        // --- Elementos do Jogo ---
+        const gameContainer = document.getElementById('game-container');
+        const endScreen = document.getElementById('end-screen');
+        const scoreDisplay = document.getElementById('score');
+        const questionNumDisplay = document.getElementById('question-num');
+        const totalQuestionsDisplay = document.getElementById('total-questions');
+        const questionText = document.getElementById('question-text');
+        const optionAButton = document.getElementById('option-a');
+        const optionBButton = document.getElementById('option-b');
+        
+        // --- Elementos do Ranking ---
+        const finalScoreDisplay = document.getElementById('final-score');
+        const playerNameInput = document.getElementById('player-name');
+        const saveScoreButton = document.getElementById('save-score-btn');
+        const playAgainButton = document.getElementById('play-again-btn');
+        const leaderboardList = document.getElementById('leaderboard-list');
+
+
+        // --- Função para MOSTRAR o Alerta (Sem alteração) ---
+        function showAnAlert(title, message, info, isSuccess) {
+            alertTitle.innerText = title;
+            alertMessage.innerText = message;
+            alertInfo.innerHTML = "<strong>Para Saber Mais:</strong> " + info;
+
+            if (isSuccess) {
+                // Lógica Positiva
+                try {
+                    alertHeader.classList.remove('danger');
+                    alertHeader.classList.add('success');
+                    bodyEl.classList.remove('bleached');
+                    playVictorySound();
+                    launchConfetti();
+                } catch (e) {
+                    console.error("Erro nos efeitos positivos:", e);
+                }
+
+            } else {
+                // Lógica Negativa
+                try {
+                    alertHeader.classList.remove('success');
+                    alertHeader.classList.add('danger');
+                    bodyEl.classList.add('bleached'); 
+                    startSirenSound();
+                    flashOverlay.classList.add('flashing');
+                } catch (e) {
+                    console.error("Erro nos efeitos negativos:", e);
+                }
+            }
+
+            // Mostra o alerta (fundo e caixa)
+            alertOverlay.style.display = 'flex';
+        }
+
+        // --- Função para ESCONDER o Alerta (Sem alteração) ---
+        function hideAlert() {
+            alertOverlay.style.display = 'none';
+            
+            // DESLIGA EFEITOS DE ALERTA
+            stopSirenSound();
+            flashOverlay.classList.remove('flashing');
+        }
+
+        // ===========================================
+        // --- LÓGICA DO QUIZ ---
+        // ===========================================
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        // --- Banco de Perguntas com 10 questões (Sem alteração) ---
+        const questions = [
+            // Pergunta 1
+            {
+                question: "Ao sair da praia, o que você faz com seu lixo?",
+                options: [
+                    { 
+                        text: "♻️ Recolher lixo da areia, mesmo o que não é meu",
+                        isCorrect: true,
+                        title: "SISTEMA: AÇÃO POSITIVA!",
+                        message: "Você removeu lixo da zona costeira! O risco de contaminação na área diminuiu.",
+                        info: "A 'ciência cidadã' (quando o público ajuda) é vital. Cada pedaço de lixo removido é uma vida marinha que você pode ter salvado."
+                    },
+                    { 
+                        text: "🚬 Deixar bituca de cigarro ou tampa de garrafa na areia",
+                        isCorrect: false,
+                        title: "ALERTA: RISCO DE MICROPLÁSTICO!",
+                        message: "O plástico se quebra em micropartículas que são ingeridas por peixes, tartarugas e até por nós.",
+                        info: "Uma única bituca de cigarro pode contaminar até 50 litros de água e levar 10 anos para se decompor."
+                    }
+                ]
+            },
+            // Pergunta 2
+            {
+                question: "Qual protetor solar você escolhe para entrar na água?",
+                options: [
+                    { 
+                        text: "🧴 Usar protetor solar comum (com Oxibenzona)",
+                        isCorrect: false,
+                        title: "ALERTA: BRANQUEAMENTO QUÍMICO!",
+                        message: "O sistema detectou Oxibenzona. Este químico é tóxico para os corais, matando as algas que lhes dão cor.",
+                        info: "Corais branqueados estão 'doentes' e famintos. Procure protetores minerais (com Óxido de Zinco) que são seguros."
+                    },
+                    { 
+                        text: "🌿 Usar protetor solar mineral (Óxido de Zinco)",
+                        isCorrect: true,
+                        title: "SISTEMA: PREVENÇÃO EFETUADA!",
+                        message: "O sistema detectou o uso de protetor solar mineral (Filtro Físico). A qualidade da água foi mantida.",
+                        info: "Protetores minerais criam uma barreira na pele e não se dissolvem, sendo a única opção 100% segura para os recifes."
+                    }
+                ]
+            },
+            // Pergunta 3
+            {
+                question: "Ao mergulhar perto de corais, qual é sua conduta?",
+                options: [
+                    { 
+                        text: "🖐️ Tocar nos corais para tirar uma foto bonita",
+                        isCorrect: false,
+                        title: "ALERTA: DANO FÍSICO DETECTADO!",
+                        message: "O toque humano remove a camada de muco protetora do coral, deixando-o vulnerável a infecções e morte.",
+                        info: "Corais são animais, não pedras. Eles são colônias de seres vivos minúsculos (pólipos) e são extremamente frágeis."
+                    },
+                    { 
+                        text: "🤿 Praticar mergulho sem tocar em nada (flutuabilidade)",
+                        isCorrect: true,
+                        title: "SISTEMA: BOA CONDUTA DETECTADA!",
+                        message: "Sua técnica de flutuabilidade neutra foi registrada. Você observou o recife sem levantar areia.",
+                        info: "O controle da flutuabilidade é a habilidade mais importante de um mergulhador consciente. Ela evita danos acidentais."
+                    }
+                ]
+            },
+            // Pergunta 4
+            {
+                question: "Você vê turistas jogando pão para os peixes. O que você faz?",
+                options: [
+                    { 
+                        text: "🍞 Se juntar e alimentar os peixes com salgadinho",
+                        isCorrect: false,
+                        title: "ALERTA: DESEQUILÍBRIO ECOLÓGICO!",
+                        message: "Alimentar peixes com comida humana os torna dependentes e agressivos. Eles deixam de cumprir sua função natural.",
+                        info: "Peixes-papagaio, por exemplo, comem algas que sufocam os corais. Se eles comem pão, as algas crescem sem controle."
+                    },
+                    { 
+                        text: "🐠 Observar os peixes em seu habitat natural sem interferir",
+                        isCorrect: true,
+                        title: "SISTEMA: OBSERVAÇÃO CONSCIENTE!",
+                        message: "Atitude correta! Os peixes têm dietas específicas e essenciais para o equilíbrio do recife.",
+                        info: "A melhor forma de interação é a observação. Deixar os animais se alimentarem naturalmente mantém o ecossistema saudável."
+                    }
+                ]
+            },
+            // Pergunta 5
+            {
+                question: "Como você para o barco para um mergulho perto do recife?",
+                options: [
+                    { 
+                        text: "⚓ Ancorar o barco em cima dos corais",
+                        isCorrect: false,
+                        title: "ALERTA: DESTRUIÇÃO EM MASSA!",
+                        message: "A âncora e sua corrente arrastam pelo fundo, quebrando colônias de coral que levaram centenas de anos para crescer.",
+                        info: "Sempre use as 'poitas' (boias de amarração) oficiais. Se não houver, ancore apenas em fundos de areia, longe dos corais."
+                    },
+                    { 
+                        text: "⛵ Usar uma poita (boia de amarração) oficial",
+                        isCorrect: true,
+                        title: "SISTEMA: ANCORAGEM SEGURA!",
+                        message: "Você usou a boia de amarração designada, evitando qualquer contato da âncora com o fundo do mar.",
+                        info: "As poitas são instaladas exatamente para isso: permitir o acesso ao local sem destruir o recife que todos querem ver."
+                    }
+                ]
+            },
+            // Pergunta 6
+            {
+                question: "Hora de comprar uma lembrança da viagem. O que você escolhe?",
+                options: [
+                    { 
+                        text: "🛍️ Comprar um artesanato feito de coral verdadeiro",
+                        isCorrect: false,
+                        title: "ALERTA: INCENTIVO À DESTRUIÇÃO!",
+                        message: "A compra de souvenirs de coral financia a colheita ilegal, que usa métodos destrutivos (como dinamite).",
+                        info: "Nunca compre corais, estrelas-do-mar secas ou conchas de espécies ameaçadas. Tire apenas fotos."
+                    },
+                    { 
+                        text: "🎨 Comprar arte local (pintura, tecido) que celebra o oceano",
+                        isCorrect: true,
+                        title: "SISTEMA: CONSUMO CONSCIENTE!",
+                        message: "Você escolheu apoiar a cultura local e levar uma lembrança que não custou a vida de um animal marinho.",
+                        info: "O turismo sustentável incentiva a economia local sem destruir o meio ambiente que atrai os turistas."
+                    }
+                ]
+            },
+             // Pergunta 7
+            {
+                question: "Você avista uma rede de pesca abandonada presa no recife. O que fazer?",
+                options: [
+                    { 
+                        text: "📢 Denunciar a 'rede fantasma' para autoridades (ICMBio, ONGs)",
+                        isCorrect: true,
+                        title: "SISTEMA: CIÊNCIA CIDADÃ ATIVADA!",
+                        message: "Alerta recebido! Sua denúncia mobilizou equipes de remoção. A rede será retirada antes que prenda animais.",
+                        info: "Redes de pesca abandonadas continuam matando por décadas. Denunciar sua localização é um ato heroico."
+                    },
+                    { 
+                        text: "🤷 Ignorar a rede, pois não é problema seu",
+                        isCorrect: false,
+                        title: "ALERTA: RISCO DE 'PESCA FANTASMA'!",
+                        message: "Uma rede abandonada continua matando tartarugas, golfinhos e peixes indefinidamente.",
+                        info: "A omissão permite que a 'pesca fantasma' continue. Sempre reporte a localização para autoridades ambientais ou ONGs de mergulho."
+                    }
+                ]
+            },
+             // Pergunta 8
+            {
+                question: "Você está mergulhando (snorkel) e vê uma tartaruga. Qual sua reação?",
+                options: [
+                    { 
+                        text: "🐢 Nadar atrás dela para tentar tocar no casco",
+                        isCorrect: false,
+                        title: "ALERTA: ASSÉDIO DE ANIMAL SELVAGEM!",
+                        message: "Perseguir ou tocar em animais marinhos causa estresse extremo, pode transmitir doenças e é ilegal.",
+                        info: "Tartarugas precisam subir para respirar. Persegui-las pode impedi-las de respirar, causando afogamento. Mantenha distância."
+                    },
+                    { 
+                        text: " distanc Observar a tartaruga à distância, sem persegui-la",
+                        isCorrect: true,
+                        title: "SISTEMA: OBSERVAÇÃO RESPEITOSA!",
+                        message: "Você manteve uma distância segura e permitiu que o animal seguisse seu curso natural.",
+                        info: "A regra de ouro do mergulho consciente é: não toque, não persiga, não alimente. Seja um visitante, não um invasor."
+                    }
+                ]
+            },
+            // Pergunta 9
+            {
+                question: "Ao caminhar na praia, você encontra uma concha muito bonita.",
+                options: [
+                    { 
+                        text: "🐚 Pegar a concha para sua coleção em casa",
+                        isCorrect: false,
+                        title: "ALERTA: REMOÇÃO DE HABITAT!",
+                        message: "Parece inofensivo, mas conchas são essenciais. Elas viram 'casas' para caranguejos-eremitas.",
+                        info: "Além de servirem de abrigo, as conchas se decompõem e retornam cálcio para a areia, enriquecendo o ecossistema."
+                    },
+                    { 
+                        text: "📸 Tirar uma foto da concha e deixá-la onde está",
+                        isCorrect: true,
+                        title: "SISTEMA: ATITUDE SUSTENTÁVEL!",
+                        message: "Excelente! Você entendeu que a concha tem uma função ecológica importante na praia.",
+                        info: "'Tire apenas fotos, deixe apenas pegadas'. Essa é a melhor forma de preservar a beleza natural para todos."
+                    }
+                ]
+            },
+            // Pergunta 10
+            {
+                question: "Você está em um barco e precisa descartar o óleo do motor ou lixo químico.",
+                options: [
+                    { 
+                        text: "💧 Despejar no mar, pois 'o oceano é grande e dilui'",
+                        isCorrect: false,
+                        title: "ALERTA: CONTAMINAÇÃO QUÍMICA GRAVE!",
+                        message: "Poluentes químicos e óleo são extremamente tóxicos para corais, peixes e plâncton, matando a base da vida marinha.",
+                        info: "Oceano não dilui, ele acumula. Óleo e químicos devem ser descartados APENAS em marinas e portos com coleta especializada."
+                    },
+                    { 
+                        text: "☣️ Guardar em recipiente seguro e levar para descarte em terra",
+                        isCorrect: true,
+                        title: "SISTEMA: DESCARTE CORRETO!",
+                        message: "Você evitou uma contaminação direta. O lixo químico foi armazenado para descarte em local apropriado.",
+                        info: "A poluição invisível (química) é uma das maiores ameaças aos recifes, causando doenças e morte em larga escala."
+                    }
+                ]
+            }
+        ];
+
+        // --- Função para Carregar a Pergunta (Sem alteração) ---
+        function loadQuestion() {
+            // Verifica se o quiz acabou
+            if (currentQuestionIndex >= questions.length) {
+                endGame();
+                return;
+            }
+
+            // Reseta o "branqueamento" do fundo
+            bodyEl.classList.remove('bleached');
+
+            const currentQ = questions[currentQuestionIndex];
+
+            // Atualiza os textos na tela
+            questionText.innerText = currentQ.question;
+            questionNumDisplay.innerText = currentQuestionIndex + 1;
+            
+            // Embaralha as opções para que a correta não esteja sempre no mesmo lugar
+            const shuffledOptions = currentQ.options.sort(() => Math.random() - 0.5);
+
+            // Configura o Botão A
+            optionAButton.innerHTML = shuffledOptions[0].text; // innerHTML para renderizar o emoji
+            optionAButton.dataset.isCorrect = shuffledOptions[0].isCorrect;
+            optionAButton.dataset.title = shuffledOptions[0].title;
+            optionAButton.dataset.message = shuffledOptions[0].message;
+            optionAButton.dataset.info = shuffledOptions[0].info;
+            
+            // Configura o Botão B
+            optionBButton.innerHTML = shuffledOptions[1].text; // innerHTML para renderizar o emoji
+            optionBButton.dataset.isCorrect = shuffledOptions[1].isCorrect;
+            optionBButton.dataset.title = shuffledOptions[1].title;
+            optionBButton.dataset.message = shuffledOptions[1].message;
+            optionBButton.dataset.info = shuffledOptions[1].info;
+        }
+
+        // --- Função para lidar com a resposta (Sem alteração) ---
+        function handleAnswerClick(event) {
+            // Garante que o contexto de áudio funcione (necessário em alguns navegadores)
+             if (audioContext.state === 'suspended') {
+                audioContext.resume();
+             }
+             
+            const clickedButton = event.currentTarget;
+            const isCorrect = clickedButton.dataset.isCorrect === 'true';
+
+            // Atualiza pontuação
+            if (isCorrect) {
+                score += 10;
+                scoreDisplay.innerText = score;
+            }
+
+            // Mostra o feedback (seu alerta)
+            showAnAlert(
+                clickedButton.dataset.title,
+                clickedButton.dataset.message,
+                clickedButton.dataset.info,
+                isCorrect
+            );
+        }
+        
+        // --- Função de Fim de Jogo (Sem alteração) ---
+        function endGame() {
+            gameContainer.style.display = 'none';
+            endScreen.style.display = 'block';
+            finalScoreDisplay.innerText = score;
+            displayLeaderboard();
+        }
+
+        // --- Função para Iniciar o Jogo (Sem alteração) ---
+        function startGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreDisplay.innerText = '0';
+            totalQuestionsDisplay.innerText = questions.length;
+            
+            gameContainer.style.display = 'block';
+            endScreen.style.display = 'none';
+            
+            loadQuestion();
+        }
+
+        // --- Funções do Ranking (localStorage) ---
+        
+        // --- ATUALIZADO: saveScore agora só salva o TOP 5 ---
+        function saveScore() {
+            const playerName = playerNameInput.value.trim();
+            if (playerName === "") {
+                alert("Por favor, digite seu nome!");
+                return;
+            }
+
+            // 1. Pega o ranking atual
+            const leaderboard = JSON.parse(localStorage.getItem('coralQuizLeaderboard')) || [];
+            
+            // 2. Adiciona a nova pontuação
+            leaderboard.push({ name: playerName, score: score });
+            
+            // 3. Ordena do maior para o menor
+            leaderboard.sort((a, b) => b.score - a.score);
+
+            // 4. CORTA o array, mantendo apenas os 5 primeiros
+            const top5 = leaderboard.slice(0, 5);
+            
+            // 5. Salva SOMENTE o Top 5 de volta no localStorage
+            localStorage.setItem('coralQuizLeaderboard', JSON.stringify(top5));
+            
+            // Atualiza a exibição
+            displayLeaderboard();
+            saveScoreButton.disabled = true; // Evita salvar duas vezes
+            playerNameInput.disabled = true;
+        }
+        
+        function displayLeaderboard() {
+            const leaderboard = JSON.parse(localStorage.getItem('coralQuizLeaderboard')) || [];
+            leaderboardList.innerHTML = ""; // Limpa a lista antiga
+            
+            // Não precisa mais do .slice() aqui, pois o localStorage já está limpo
+            // Mas não faz mal manter por segurança.
+
+            if (leaderboard.length === 0) {
+                 leaderboardList.innerHTML = "<li>Nenhuma pontuação registrada ainda.</li>";
+                 return;
+            }
+
+            leaderboard.forEach(entry => {
+                const li = document.createElement('li');
+                li.innerHTML = `${entry.name} <span class="score">${entry.score} pts</span>`;
+                leaderboardList.appendChild(li);
+            });
+        }
+
+
+        // --- Adicionando os "escutadores" de clique ---
+        
+        // Botões de Resposta
+        optionAButton.addEventListener('click', handleAnswerClick);
+        optionBButton.addEventListener('click', handleAnswerClick);
+
+        // Botão para fechar o alerta
+        closeButton.addEventListener('click', () => {
+            hideAlert();
+            currentQuestionIndex++; // Avança para a próxima pergunta
+            loadQuestion();       // Carrega a próxima pergunta
+        });
+        
+        // Botões da Tela Final
+        playAgainButton.addEventListener('click', () => {
+            // Reabilita os botões de salvar
+            saveScoreButton.disabled = false;
+            playerNameInput.disabled = false;
+            playerNameInput.value = "";
+            startGame();
+        });
+        saveScoreButton.addEventListener('click', saveScore);
+
+        // --- Inicia o Jogo ao carregar a página ---
+        startGame();
+
+    </script>
+
+</body>
+</html>
